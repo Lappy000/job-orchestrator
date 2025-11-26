@@ -1,0 +1,12 @@
+{
+    "include": ["src", "tests", "examples"],
+    "extraPaths": ["./src"],
+    "pythonVersion": "3.10",
+    "typeCheckingMode": "basic",
+    "reportMissingImports": "warning",
+    "reportMissingTypeStubs": "none",
+    "reportUnknownMemberType": "none",
+    "reportUnknownVariableType": "none",
+    "reportUnknownParameterType": "none",
+    "reportUnknownArgumentType": "none"
+}
