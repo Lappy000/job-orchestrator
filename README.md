@@ -8,16 +8,16 @@ A modern alternative to Celery/Airflow for Python applications.
 
 ## Features
 
-- 🚀 **Lightweight:** Core functionality uses only Python stdlib (threading, multiprocessing, queue)
-- 📊 **DAG Support:** Build complex workflows with job dependencies
-- ⚡ **Priority Queue:** Heap-based O(log n) priority queue implementation
-- 🔄 **Automatic Retries:** Configurable retry policies with exponential backoff and jitter
-- 📈 **Dynamic Scaling:** Auto-scaling worker pool based on load
-- 🔗 **Job Dependencies:** Chain jobs and execute in parallel when possible
-- 💀 **Dead Letter Queue:** Failed jobs are preserved for debugging and reprocessing
-- 🔒 **Distributed Locking:** Thread-safe locks with Redis support for multi-node deployments
-- 📝 **Observable:** Built-in statistics, logging, and state introspection
-- 🔌 **Extensible:** Optional Redis/PostgreSQL backends for persistence
+- **Lightweight:** Core functionality uses only Python stdlib (threading, multiprocessing, queue)
+- **DAG Support:** Build complex workflows with job dependencies
+- **Priority Queue:** Heap-based O(log n) priority queue implementation
+- **Automatic Retries:** Configurable retry policies with exponential backoff and jitter
+- **Dynamic Scaling:** Auto-scaling worker pool based on load
+- **Job Dependencies:** Chain jobs and execute in parallel when possible
+- **Dead Letter Queue:** Failed jobs are preserved for debugging and reprocessing
+- **Distributed Locking:** Thread-safe locks with Redis support for multi-node deployments
+- **Observable:** Built-in statistics, logging, and state introspection
+- **Extensible:** Optional Redis/PostgreSQL backends for persistence
 
 ## Installation
 
