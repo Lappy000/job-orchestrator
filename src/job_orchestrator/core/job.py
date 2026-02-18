@@ -6,7 +6,7 @@ and the RetryPolicy configuration.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 from uuid import UUID, uuid4
@@ -205,10 +205,11 @@ class Job:
         """Normalize basic fields after construction."""
         if isinstance(self.priority, str):
             self.priority = JobPriority[self.priority.upper()]
+        # Convert timezone-aware datetimes to UTC, then strip tzinfo for internal consistency
         if self.scheduled_at and self.scheduled_at.tzinfo is not None:
-            self.scheduled_at = self.scheduled_at.replace(tzinfo=None)
+            self.scheduled_at = self.scheduled_at.astimezone(timezone.utc).replace(tzinfo=None)
         if self.created_at.tzinfo is not None:
-            self.created_at = self.created_at.replace(tzinfo=None)
+            self.created_at = self.created_at.astimezone(timezone.utc).replace(tzinfo=None)
     
     def __lt__(self, other: "Job") -> bool:
         """
@@ -254,6 +255,7 @@ class Job:
             JobState.SCHEDULED,
             JobState.RUNNING,
             JobState.RETRYING,
+            JobState.TIMEOUT,
         }
     
     @property

@@ -245,7 +245,10 @@ class DAGExecutor:
                 self._check_dag_completion(execution)
     
     def _fail_dag(self, execution: DAGExecution, error: str) -> None:
-        """Mark a DAG as failed."""
+        """Mark a DAG as failed (idempotent — safe to call multiple times)."""
+        if execution.status in (DAGStatus.FAILED, DAGStatus.CANCELLED):
+            return  # Already in a terminal state
+        
         execution.status = DAGStatus.FAILED
         execution.completed_at = datetime.utcnow()
         execution.error = error

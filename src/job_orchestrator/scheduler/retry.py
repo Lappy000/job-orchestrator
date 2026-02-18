@@ -238,13 +238,17 @@ class RetryHandler:
         schedules the job for a delayed retry. Otherwise, the job should
         be moved to the dead letter queue.
         
+        Note: This method updates the job's attempt counter and scheduled_at
+        but does NOT modify job.state or call scheduler.submit() — the caller
+        must handle state transitions and re-queuing.
+        
         Args:
             job: The job to retry.
-            scheduler: The scheduler to submit the retry to.
+            scheduler: The scheduler (unused, kept for API compatibility).
             error: The exception that caused the failure (optional).
             
         Returns:
-            True if the job was scheduled for retry, False if max retries
+            True if the job should be retried, False if max retries
             exceeded (should go to DLQ).
         """
         policy = self.get_policy_for_job(job)
@@ -256,13 +260,10 @@ class RetryHandler:
             )
             return False  # Should go to DLQ
         
-        # Calculate delay
+        # Calculate delay and update job metadata
         delay = policy.calculate_delay(job.attempt)
-        
-        # Update job for retry
         job.attempt += 1
         job.scheduled_at = datetime.utcnow() + timedelta(seconds=delay)
-        job.state = JobState.RETRYING
         
         # Clear previous error for new attempt
         job.error = None
@@ -273,9 +274,6 @@ class RetryHandler:
             f"in {delay:.1f}s"
         )
         
-        # Re-queue with delay
-        scheduler.submit(job)
-        
         return True
     
     def prepare_for_retry(self, job: Job) -> Tuple[float, datetime]:
@@ -283,7 +281,8 @@ class RetryHandler:
         Prepare a job for retry without submitting it.
         
         Updates the job's retry counter and calculates the retry delay.
-        Useful when the caller wants to handle submission separately.
+        Does NOT modify job.state — the caller is responsible for
+        state transitions via the StateMachine.
         
         Args:
             job: The job to prepare for retry.
@@ -297,10 +296,9 @@ class RetryHandler:
         delay = policy.calculate_delay(job.attempt)
         scheduled_at = datetime.utcnow() + timedelta(seconds=delay)
         
-        # Update job
+        # Update job metadata (but NOT state — caller handles transitions)
         job.attempt += 1
         job.scheduled_at = scheduled_at
-        job.state = JobState.RETRYING
         
         return delay, scheduled_at
     

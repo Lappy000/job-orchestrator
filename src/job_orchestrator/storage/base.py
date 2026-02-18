@@ -7,6 +7,7 @@ that persist job state, results, and metadata.
 
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
+import threading
 
 if TYPE_CHECKING:
     from ..core.job import Job
@@ -142,7 +143,7 @@ class BaseStorage(ABC):
 
 class InMemoryStorage(BaseStorage):
     """
-    In-memory storage backend for development and testing.
+    Thread-safe in-memory storage backend for development and testing.
     
     WARNING: All data is lost when the process exits.
     Use this only for development, testing, or single-process deployments.
@@ -151,25 +152,30 @@ class InMemoryStorage(BaseStorage):
     def __init__(self) -> None:
         """Initialize the in-memory storage."""
         self._jobs: Dict[str, "Job"] = {}
+        self._lock = threading.RLock()
     
     def save(self, job: "Job") -> None:
         """Save a job to memory."""
-        self._jobs[str(job.id)] = job
+        with self._lock:
+            self._jobs[str(job.id)] = job
     
     def update(self, job: "Job") -> None:
         """Update a job in memory."""
-        self._jobs[str(job.id)] = job
+        with self._lock:
+            self._jobs[str(job.id)] = job
     
     def get(self, job_id: str) -> Optional["Job"]:
         """Get a job from memory."""
-        return self._jobs.get(job_id)
+        with self._lock:
+            return self._jobs.get(job_id)
     
     def delete(self, job_id: str) -> bool:
         """Delete a job from memory."""
-        if job_id in self._jobs:
-            del self._jobs[job_id]
-            return True
-        return False
+        with self._lock:
+            if job_id in self._jobs:
+                del self._jobs[job_id]
+                return True
+            return False
     
     def list_jobs(
         self,
@@ -178,21 +184,23 @@ class InMemoryStorage(BaseStorage):
         offset: int = 0,
     ) -> List["Job"]:
         """List jobs from memory with optional filtering."""
-        jobs = list(self._jobs.values())
-        
-        if state:
-            jobs = [j for j in jobs if j.state.value == state]
-        
-        jobs = jobs[offset:]
-        
-        if limit:
-            jobs = jobs[:limit]
-        
-        return jobs
+        with self._lock:
+            jobs = list(self._jobs.values())
+            
+            if state:
+                jobs = [j for j in jobs if j.state.value == state]
+            
+            jobs = jobs[offset:]
+            
+            if limit:
+                jobs = jobs[:limit]
+            
+            return jobs
     
     def clear(self) -> None:
         """Clear all jobs from storage."""
-        self._jobs.clear()
+        with self._lock:
+            self._jobs.clear()
 
 
 __all__ = [

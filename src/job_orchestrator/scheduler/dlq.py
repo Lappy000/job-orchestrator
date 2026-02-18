@@ -119,7 +119,7 @@ class DeadLetterQueue:
         self._job_index: Dict[str, str] = {}
         self._callbacks: List[Callable[[DLQEntry], None]] = []
         self._lock = threading.RLock()
-        self._shutdown = False
+        self._shutdown_event = threading.Event()
         self._cleanup_thread: Optional[threading.Thread] = None
         self._ttl_seconds = self.ttl
 
@@ -138,10 +138,10 @@ class DeadLetterQueue:
         self._cleanup_thread.start()
 
     def _cleanup_loop(self) -> None:
-        while not self._shutdown:
+        while not self._shutdown_event.is_set():
             try:
-                threading.Event().wait(self._cleanup_interval)
-                if self._shutdown:
+                self._shutdown_event.wait(self._cleanup_interval)
+                if self._shutdown_event.is_set():
                     break
                 self.cleanup_expired()
             except Exception as exc:  # pragma: no cover - defensive
@@ -433,7 +433,7 @@ class DeadLetterQueue:
         return removed
 
     def shutdown(self) -> None:
-        self._shutdown = True
+        self._shutdown_event.set()
         if self._cleanup_thread and self._cleanup_thread.is_alive():
             self._cleanup_thread.join(timeout=5.0)
 

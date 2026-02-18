@@ -20,22 +20,28 @@ logger = logging.getLogger(__name__)
 
 
 # Lua scripts for atomic operations
-# Release lock only if the owner matches
+# Release lock only if the owner matches (value is JSON containing owner field)
 RELEASE_SCRIPT = """
-if redis.call("get", KEYS[1]) == ARGV[1] then
-    return redis.call("del", KEYS[1])
-else
-    return 0
+local value = redis.call("get", KEYS[1])
+if value then
+    local data = cjson.decode(value)
+    if data and data.owner == ARGV[1] then
+        return redis.call("del", KEYS[1])
+    end
 end
+return 0
 """
 
-# Extend lock TTL only if the owner matches
+# Extend lock TTL only if the owner matches (value is JSON containing owner field)
 EXTEND_SCRIPT = """
-if redis.call("get", KEYS[1]) == ARGV[1] then
-    return redis.call("pexpire", KEYS[1], ARGV[2])
-else
-    return 0
+local value = redis.call("get", KEYS[1])
+if value then
+    local data = cjson.decode(value)
+    if data and data.owner == ARGV[1] then
+        return redis.call("pexpire", KEYS[1], ARGV[2])
+    end
 end
+return 0
 """
 
 # Get lock info as JSON

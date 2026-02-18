@@ -151,14 +151,23 @@ class Scheduler:
             if self._job_store.contains(job.id):
                 raise JobAlreadyExistsError(job.id)
             
+            # Check queue capacity BEFORE making state changes
+            if self._config.queue.max_size is not None and len(self._queue) >= self._config.queue.max_size:
+                raise QueueFullError(
+                    queue_size=len(self._queue),
+                    max_size=self._config.queue.max_size
+                )
+            
             # Add to store
             self._job_store.add(job)
             
             # Transition to SCHEDULED
             self._state_machine.transition(job, JobState.SCHEDULED)
             
-            # Push to queue
+            # Push to queue (should succeed since we pre-checked capacity)
             if not self._queue.push(job):
+                # Rollback: revert state and remove from store
+                job.state = JobState.PENDING
                 self._job_store.delete(job.id)
                 raise QueueFullError(
                     queue_size=len(self._queue),
@@ -292,12 +301,16 @@ class Scheduler:
             
             # Try to schedule retry using the retry handler
             if self._retry_handler.should_retry(job, error):
-                # Prepare job for retry
+                # Prepare job for retry (updates attempt counter and scheduled_at)
                 delay, scheduled_at = self._retry_handler.prepare_for_retry(job)
                 
-                # Transition to RETRYING then SCHEDULED
+                # Transition RUNNING -> RETRYING -> SCHEDULED via state machine
                 self._state_machine.transition(job, JobState.RETRYING)
                 self._state_machine.transition(job, JobState.SCHEDULED)
+                
+                # Clear error for the new attempt
+                job.error = None
+                job.traceback = None
                 
                 # Re-queue with delay
                 self._queue.push(job)
@@ -505,13 +518,15 @@ class Scheduler:
             job.error = result.error
             job.traceback = result.traceback
             
-            # Check for retry
-            if job.can_retry:
-                delay = job.retry_policy.calculate_delay(job.attempt)
-                job.scheduled_at = datetime.utcnow() + timedelta(seconds=delay)
+            # Check for retry using the retry handler for consistency
+            if self._retry_handler.should_retry(job, Exception(result.error or "Unknown")):
+                delay, scheduled_at = self._retry_handler.prepare_for_retry(job)
                 self._state_machine.transition(job, JobState.RETRYING)
                 self._state_machine.transition(job, JobState.SCHEDULED)
+                job.error = None
+                job.traceback = None
                 self._queue.push(job)
+                self._stats["jobs_retried"] += 1
             else:
                 self._state_machine.transition(job, JobState.FAILED)
                 job.completed_at = result.completed_at

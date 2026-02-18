@@ -86,6 +86,7 @@ class StateMachine:
         JobState.SCHEDULED,
         JobState.RUNNING,
         JobState.RETRYING,
+        JobState.TIMEOUT,
     }
     
     def __init__(self):

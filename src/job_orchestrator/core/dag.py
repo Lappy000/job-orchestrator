@@ -5,6 +5,7 @@ This module provides data structures for representing job dependencies
 as a directed acyclic graph, along with a builder API for easy DAG construction.
 """
 
+from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Callable, Dict, Iterator, List, Optional, Set, Union
@@ -285,12 +286,12 @@ class DAG:
             for job_id, node in self.nodes.items()
         }
         
-        # Find all nodes with no incoming edges
-        queue = [job_id for job_id, degree in in_degree.items() if degree == 0]
+        # Find all nodes with no incoming edges (use deque for O(1) popleft)
+        queue = deque(job_id for job_id, degree in in_degree.items() if degree == 0)
         result: List[Job] = []
         
         while queue:
-            job_id = queue.pop(0)
+            job_id = queue.popleft()
             result.append(self.jobs[job_id])
             
             # Decrease in-degree of neighbors
@@ -562,6 +563,7 @@ class DAGBuilder:
             job = job_or_func
         elif callable(job_or_func):
             # Create job from callable
+            from .job import JobPriority
             func_name = getattr(job_or_func, "__name__", "anonymous")
             func_path = f"{job_or_func.__module__}.{job_or_func.__qualname__}"
             
@@ -571,17 +573,10 @@ class DAGBuilder:
                 func_path=func_path,
                 args=job_kwargs.get("args", ()),
                 kwargs=job_kwargs.get("kwargs", {}),
-                priority=job_kwargs.get("priority", job.priority if isinstance(job_or_func, Job) else None),
+                priority=job_kwargs.get("priority", JobPriority.NORMAL),
                 timeout=job_kwargs.get("timeout"),
                 tags=job_kwargs.get("tags", {}),
             )
-            
-            # Handle priority separately since we used job.priority in the condition
-            from .job import JobPriority
-            if "priority" in job_kwargs:
-                job.priority = job_kwargs["priority"]
-            else:
-                job.priority = JobPriority.NORMAL
         else:
             raise TypeError(f"Expected Job or callable, got {type(job_or_func)}")
         
