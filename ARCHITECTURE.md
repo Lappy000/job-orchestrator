@@ -1,7 +1,7 @@
 # Job Orchestrator Architecture Document
 
 **Version:** 1.0.0  
-**Author:** Architecture Team  
+**Author:** Lappy000  
 **Last Updated:** 2024  
 
 ---

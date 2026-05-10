@@ -9,7 +9,7 @@ description = "A lightweight, high-performance background job processing system 
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
-    {name = "Architecture Team", email = "team@example.com"}
+    {name = "Lappy000", email = "team@example.com"}
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -47,10 +47,10 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/example/job-orchestrator"
-Documentation = "https://github.com/example/job-orchestrator#readme"
-Repository = "https://github.com/example/job-orchestrator.git"
-Issues = "https://github.com/example/job-orchestrator/issues"
+Homepage = "https://github.com/Lappy000/job-orchestrator"
+Documentation = "https://github.com/Lappy000/job-orchestrator#readme"
+Repository = "https://github.com/Lappy000/job-orchestrator.git"
+Issues = "https://github.com/Lappy000/job-orchestrator/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]

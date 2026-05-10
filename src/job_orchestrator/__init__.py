@@ -24,7 +24,7 @@ DAG Workflow:
 """
 
 __version__ = "0.1.0"
-__author__ = "Architecture Team"
+__author__ = "Lappy000"
 
 # Core exports
 from .core import (

@@ -471,7 +471,7 @@ pytest tests/test_real_world/ -v
 
 ```bash
 # Clone the repository
-git clone https://github.com/example/job-orchestrator.git
+git clone https://github.com/Lappy000/job-orchestrator.git
 cd job-orchestrator
 
 # Install development dependencies
@@ -513,6 +513,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Support
 
-- 📖 [Documentation](https://github.com/example/job-orchestrator#readme)
-- 🐛 [Issue Tracker](https://github.com/example/job-orchestrator/issues)
-- 💬 [Discussions](https://github.com/example/job-orchestrator/discussions)
+- 📖 [Documentation](https://github.com/Lappy000/job-orchestrator#readme)
+- 🐛 [Issue Tracker](https://github.com/Lappy000/job-orchestrator/issues)
+- 💬 [Discussions](https://github.com/Lappy000/job-orchestrator/discussions)
