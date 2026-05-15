@@ -4,12 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "job-orchestrator"
-version = "0.1.0"
+version = "0.2.0"
 description = "A lightweight, high-performance background job processing system with DAG support"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
-    {name = "Lappy000", email = "team@example.com"}
+{name = "Lappy000"}
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -45,6 +45,9 @@ dev = [
     "ruff>=0.1.0",
     "pre-commit>=3.0.0",
 ]
+
+[project.scripts]
+job-orch = "job_orchestrator.cli.main:main"
 
 [project.urls]
 Homepage = "https://github.com/Lappy000/job-orchestrator"
