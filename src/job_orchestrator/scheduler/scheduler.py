@@ -328,7 +328,7 @@ class Scheduler:
             job.completed_at = datetime.utcnow()
             
             # Add to dead letter queue
-            entry_id = self._dlq.add(job, error, traceback_str)
+            entry_id = self._dlq.add(job, error, traceback_str, retry_count=job.attempt)
             
             self._stats["jobs_failed"] += 1
             self._stats["jobs_sent_to_dlq"] += 1
@@ -519,7 +519,7 @@ class Scheduler:
             job.traceback = result.traceback
             
             # Check for retry using the retry handler for consistency
-            if self._retry_handler.should_retry(job, Exception(result.error or "Unknown")):
+            if self._retry_handler.should_retry(job, result.exception):
                 delay, scheduled_at = self._retry_handler.prepare_for_retry(job)
                 self._state_machine.transition(job, JobState.RETRYING)
                 self._state_machine.transition(job, JobState.SCHEDULED)
@@ -530,8 +530,13 @@ class Scheduler:
             else:
                 self._state_machine.transition(job, JobState.FAILED)
                 job.completed_at = result.completed_at
+                if self._config.dlq.enabled:
+                    self._dlq.add(
+                        job, result.exception, result.traceback, retry_count=job.attempt
+                    )
+                    self._stats["jobs_sent_to_dlq"] += 1
                 self._stats["jobs_failed"] += 1
-                
+
                 # Notify DAG executor
                 dag_id = self._dag_executor.get_dag_for_job(job.id)
                 if dag_id:

@@ -177,7 +177,7 @@ class StateMachine:
             )
             
             # Persist state change
-            if persist and self._job_store:
+            if persist and self._job_store is not None:
                 try:
                     self._job_store.update(job)
                 except Exception as e:
