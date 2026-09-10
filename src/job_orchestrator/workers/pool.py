@@ -285,11 +285,13 @@ class WorkerPool:
             count: Number of workers to add.
             
         Returns:
-            Actual number of workers added (may be less if max reached).
+            Actual number of workers added (zero while the pool is stopped).
         """
         added = 0
         
         with self._lock:
+            if not self._running:
+                return 0
             for _ in range(count):
                 if len(self._workers) >= self._config.max_workers:
                     break

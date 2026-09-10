@@ -31,6 +31,7 @@ class JobResult:
         traceback: Full traceback if failed.
         started_at: When execution started.
         completed_at: When execution finished.
+        exception: Original in-process exception, retained for typed retry decisions.
     """
     job_id: Any
     success: bool
@@ -39,6 +40,7 @@ class JobResult:
     traceback: Optional[str] = None
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
+    exception: Exception | None = field(default=None, repr=False, compare=False)
 
 
 class JobRunner:
@@ -77,26 +79,16 @@ class JobRunner:
         Returns:
             JobResult with execution outcome.
         """
+        # Invalid lifecycle transitions are caller errors, not task failures.
+        # Validate before touching execution metadata or invoking user code.
+        if job.state in {JobState.PENDING, JobState.RETRYING}:
+            self._state_machine.transition(job, JobState.SCHEDULED)
+        if job.state != JobState.RUNNING:
+            self._state_machine.transition(job, JobState.RUNNING)
+
         started_at = datetime.utcnow()
-        
+
         try:
-            # Ensure proper state transitions
-            # PENDING -> SCHEDULED -> RUNNING
-            if job.state == JobState.PENDING:
-                self._state_machine.transition(job, JobState.SCHEDULED)
-            
-            if job.state == JobState.SCHEDULED:
-                self._state_machine.transition(job, JobState.RUNNING)
-            elif job.state != JobState.RUNNING:
-                # If job is in RETRYING state, move to SCHEDULED then RUNNING
-                if job.state == JobState.RETRYING:
-                    self._state_machine.transition(job, JobState.SCHEDULED)
-                    self._state_machine.transition(job, JobState.RUNNING)
-                else:
-                    # Already in RUNNING or some other state, try to proceed
-                    if self._state_machine.can_transition(job.state, JobState.RUNNING):
-                        self._state_machine.transition(job, JobState.RUNNING)
-            
             job.started_at = started_at
             
             # Get the function to execute
@@ -131,6 +123,7 @@ class JobRunner:
                 job_id=job.id,
                 success=False,
                 error=error_msg,
+                exception=e,
                 traceback=traceback_str,
                 started_at=started_at,
                 completed_at=completed_at,

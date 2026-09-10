@@ -138,7 +138,8 @@ class ThreadSafePriorityQueue:
             raise TypeError("ThreadSafePriorityQueue only accepts Job instances")
         with self._lock:
             # Check if queue is full
-            if self._max_size is not None and len(self) >= self._max_size:
+            replacing = job.id in self._entry_map and job.id not in self._removed
+            if not replacing and self._max_size is not None and len(self) >= self._max_size:
                 return False
             
             # Mark old entry as removed if exists
@@ -199,6 +200,10 @@ class ThreadSafePriorityQueue:
                 job = self._get_ready_job()
                 if job is not None:
                     return job
+
+                # A nonblocking/expired read must not spin on future jobs.
+                if deadline is not None and time.time() >= deadline:
+                    return None
                 
                 # Calculate wait time
                 if not self._heap:
@@ -213,7 +218,8 @@ class ThreadSafePriorityQueue:
                         self._condition.wait(1.0)  # Wake periodically to check
                 else:
                     # Jobs exist but aren't ready yet
-                    next_job_time = self._heap[0].scheduled_time
+                    # The heap is priority-first, not schedule-first.
+                    next_job_time = min(entry.scheduled_time for entry in self._heap)
                     wait_time = next_job_time - time.time()
                     
                     if deadline is not None:
@@ -246,11 +252,18 @@ class ThreadSafePriorityQueue:
     
     def _cleanup_removed(self) -> None:
         """Clean up removed entries from the top of the heap."""
-        while self._heap and self._heap[0].job_id in self._removed:
-            entry = heapq.heappop(self._heap)
+        while self._heap:
+            entry = self._heap[0]
+            # Replacing a job leaves its old heap entry behind. Only the
+            # entry currently indexed by ID is eligible for delivery.
+            if self._entry_map.get(entry.job_id) is not entry:
+                heapq.heappop(self._heap)
+                continue
+            if entry.job_id not in self._removed:
+                break
+            heapq.heappop(self._heap)
             self._removed.discard(entry.job_id)
-            if entry.job_id in self._entry_map:
-                del self._entry_map[entry.job_id]
+            del self._entry_map[entry.job_id]
     
     def _get_ready_job(self) -> Optional[Job]:
         """Get and remove the next ready job from the queue."""
@@ -260,6 +273,8 @@ class ThreadSafePriorityQueue:
         
         while self._heap:
             entry = heapq.heappop(self._heap)
+            if self._entry_map.get(entry.job_id) is not entry:
+                continue
             if entry.job_id in self._removed:
                 self._removed.discard(entry.job_id)
                 if entry.job_id in self._entry_map:
@@ -318,14 +333,13 @@ class ThreadSafePriorityQueue:
         with self._lock:
             self._cleanup_removed()
             
-            if not self._heap:
-                return None
-            
-            entry = self._heap[0]
-            if entry.scheduled_time <= time.time() and entry.job_id not in self._removed:
-                return entry.job
-            
-            return None
+            now = time.time()
+            ready = (
+                entry for entry in self._entry_map.values()
+                if entry.job_id not in self._removed and entry.scheduled_time <= now
+            )
+            entry = min(ready, default=None)
+            return entry.job if entry is not None else None
     
     def remove(self, job_id: UUID) -> bool:
         """

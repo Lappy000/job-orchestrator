@@ -217,14 +217,24 @@ class TestScheduleRetry:
         
         assert sample_job.attempt == initial_attempt + 1
 
-    def test_schedule_retry_changes_state(self, retry_handler, sample_job, scheduler):
-        """Test scheduling retry changes state from FAILED."""
+    def test_schedule_retry_leaves_transitions_to_caller(self, retry_handler, sample_job, scheduler):
+        """Since 2aa61c7, the handler updates metadata but never submits or transitions."""
         sample_job.state = JobState.FAILED
-        
-        retry_handler.schedule_retry(sample_job, scheduler)
-        
-        # After submit, state may be SCHEDULED or RETRYING depending on scheduler
-        assert sample_job.state != JobState.FAILED
+        sample_job.error = "previous failure"
+        sample_job.traceback = "previous traceback"
+        initial_attempt = sample_job.attempt
+        before = datetime.utcnow()
+
+        assert retry_handler.schedule_retry(sample_job, scheduler) is True
+
+        assert sample_job.state == JobState.FAILED
+        assert sample_job.attempt == initial_attempt + 1
+        assert sample_job.scheduled_at >= before
+        assert sample_job.error is None
+        assert sample_job.traceback is None
+        assert scheduler.get_job(str(sample_job.id)) is None
+        assert scheduler.list_jobs() == []
+        assert scheduler.get_stats()["jobs_submitted"] == 0
 
     def test_schedule_retry_sets_scheduled_time(self, retry_handler, sample_job, scheduler):
         """Test scheduling retry sets future scheduled time."""

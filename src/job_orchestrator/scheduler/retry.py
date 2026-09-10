@@ -81,7 +81,7 @@ class RetryPolicy:
             jitter_factor = 0.5 + random.random()  # Random between 0.5 and 1.5
             delay *= jitter_factor
         
-        return delay
+        return min(delay, self.max_delay)
     
     def should_retry(self, retry_count: int, error: Optional[Exception] = None) -> bool:
         """

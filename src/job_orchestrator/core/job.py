@@ -91,7 +91,7 @@ class RetryPolicy:
         if self.jitter:
             # Add randomness: 50-150% of calculated delay
             delay *= (0.5 + random.random())
-        return delay
+        return min(delay, self.max_delay)
     
     def should_retry(self, exception: Exception) -> bool:
         """
